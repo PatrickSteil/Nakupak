@@ -103,6 +103,7 @@ export default {
     addedToList: "Zur Liste hinzugefügt",
   },
   settings: {
+    dragToReorder: "Zum Sortieren ziehen",
     moveUp: "Nach oben",
     moveDown: "Nach unten",
     categoryOrderHint: "Sortiere die Kategorien wie deinen Weg durch den Supermarkt — die Einkaufsliste folgt dieser Reihenfolge.",

@@ -99,6 +99,7 @@ export default {
     addedToList: 'Přidáno na seznam',
   },
   settings: {
+    dragToReorder: "Přetažením změníš pořadí",
     moveUp: "Posunout nahoru",
     moveDown: "Posunout dolů",
     categoryOrderHint: "Seřaď kategorie podle trasy obchodem — nákupní seznam se řídí tímto pořadím.",

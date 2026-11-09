@@ -103,6 +103,7 @@ export default {
     addedToList: "Added to list",
   },
   settings: {
+    dragToReorder: "Drag to reorder",
     moveUp: "Move up",
     moveDown: "Move down",
     categoryOrderHint: "Order categories like your route through the store — the shopping list follows this order.",
