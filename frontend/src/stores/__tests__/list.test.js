@@ -11,13 +11,13 @@ vi.mock('../../services/api', () => ({
     addRecipe: vi.fn(),
   },
   items: { list: vi.fn(), create: vi.fn(), delete: vi.fn(), update: vi.fn(), merge: vi.fn() },
-  categories: { list: vi.fn() },
+  categories: { list: vi.fn(), reorder: vi.fn() },
   recipes: { list: vi.fn() },
   pool: { get: vi.fn() },
   sessions: { list: vi.fn(), delete: vi.fn() },
 }))
 
-import { shoppingList } from '../../services/api'
+import { shoppingList, categories as categoriesApi } from '../../services/api'
 
 describe('list store', () => {
   beforeEach(() => {
@@ -41,6 +41,30 @@ describe('list store', () => {
       const groups = store.groupedByCategory
       expect(groups).toHaveLength(1)
       expect(groups[0].items).toHaveLength(2)
+    })
+
+    it('orders groups by category sort_order, not name', () => {
+      const store = useListStore()
+      store.categories = [
+        { id: 1, name: 'Water', sort_order: 2 },
+        { id: 2, name: 'Fruit', sort_order: 0 },
+        { id: 3, name: 'Frozen', sort_order: 1 },
+      ]
+      store.listItems = [
+        { id: 10, item: { category_id: 1, name: 'Sparkling' }, quantity: 1 },
+        { id: 11, item: { category_id: 3, name: 'Peas' }, quantity: 1 },
+        { id: 12, item: { category_id: 2, name: 'Apple' }, quantity: 1 },
+      ]
+      expect(store.groupedByCategory.map(g => g.category.name)).toEqual(['Fruit', 'Frozen', 'Water'])
+    })
+
+    it('reorderCategories updates order locally and persists it', async () => {
+      const store = useListStore()
+      store.categories = [{ id: 1, name: 'A', sort_order: 0 }, { id: 2, name: 'B', sort_order: 1 }]
+      categoriesApi.reorder.mockResolvedValue({})
+      await store.reorderCategories([2, 1])
+      expect(store.categories.map(c => c.id)).toEqual([2, 1])
+      expect(categoriesApi.reorder).toHaveBeenCalledWith([2, 1])
     })
 
     it('puts uncategorized items last', () => {

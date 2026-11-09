@@ -1,5 +1,6 @@
 from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, status
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from ..database import get_db
@@ -23,8 +24,28 @@ def list_categories(
 ):
     return sorted(
         db.query(Category).filter(Category.household_id == household.id).all(),
-        key=lambda c: sort_key(c.name)
+        key=lambda c: (c.sort_order or 0, sort_key(c.name))
     )
+
+
+@router.post("/categories/reorder", response_model=list[CategoryResponse])
+def reorder_categories(
+    req: BulkIdsRequest,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+    household: Household = Depends(get_current_household)
+):
+    """Set the store-walk order: position in `ids` becomes the sort_order."""
+    cats = {
+        c.id: c for c in db.query(Category).filter(Category.household_id == household.id).all()
+    }
+    if len(set(req.ids)) != len(req.ids) or set(req.ids) != set(cats):
+        raise HTTPException(status_code=400, detail="ids must list every category exactly once")
+    for position, cat_id in enumerate(req.ids):
+        cats[cat_id].sort_order = position
+    db.commit()
+    background_tasks.add_task(broadcast_update, household.id, "categories_updated", {})
+    return [cats[i] for i in req.ids]
 
 
 @router.post("/categories", response_model=CategoryResponse)
@@ -34,7 +55,14 @@ def create_category(
     db: Session = Depends(get_db),
     household: Household = Depends(get_current_household)
 ):
-    db_category = Category(**category.model_dump(), household_id=household.id)
+    data = category.model_dump()
+    if "sort_order" not in category.model_fields_set:
+        # New categories go to the end of the store route
+        last = db.query(func.max(Category.sort_order)).filter(
+            Category.household_id == household.id
+        ).scalar()
+        data["sort_order"] = 0 if last is None else last + 1
+    db_category = Category(**data, household_id=household.id)
     db.add(db_category)
     db.commit()
     db.refresh(db_category)

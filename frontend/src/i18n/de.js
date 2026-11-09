@@ -103,6 +103,9 @@ export default {
     addedToList: "Zur Liste hinzugefügt",
   },
   settings: {
+    moveUp: "Nach oben",
+    moveDown: "Nach unten",
+    categoryOrderHint: "Sortiere die Kategorien wie deinen Weg durch den Supermarkt — die Einkaufsliste folgt dieser Reihenfolge.",
     title: "Einstellungen",
     household: "Haushalt",
     householdName: "Haushaltsname",

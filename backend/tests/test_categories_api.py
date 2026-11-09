@@ -44,13 +44,34 @@ def test_delete_category(authed_client):
     assert authed_client.get("/api/categories").json() == []
 
 
-def test_categories_sorted_by_name(authed_client):
-    authed_client.post("/api/categories", json={"name": "Zebra"})
-    authed_client.post("/api/categories", json={"name": "Apple"})
-    authed_client.post("/api/categories", json={"name": "Mango"})
-    resp = authed_client.get("/api/categories")
-    names = [c["name"] for c in resp.json()]
-    assert names == ["Apple", "Mango", "Zebra"]
+def test_new_categories_append_to_end(authed_client):
+    for n in ("Zebra", "Apple", "Mango"):
+        authed_client.post("/api/categories", json={"name": n})
+    names = [c["name"] for c in authed_client.get("/api/categories").json()]
+    assert names == ["Zebra", "Apple", "Mango"]
+
+
+def test_categories_tie_broken_by_name(authed_client):
+    for n in ("Zebra", "Apple"):
+        authed_client.post("/api/categories", json={"name": n, "sort_order": 0})
+    names = [c["name"] for c in authed_client.get("/api/categories").json()]
+    assert names == ["Apple", "Zebra"]
+
+
+def test_reorder_categories(authed_client):
+    ids = {n: authed_client.post("/api/categories", json={"name": n}).json()["id"]
+           for n in ("Fruit", "Pasta", "Frozen", "Water")}
+    order = [ids["Water"], ids["Fruit"], ids["Frozen"], ids["Pasta"]]
+    resp = authed_client.post("/api/categories/reorder", json={"ids": order})
+    assert resp.status_code == 200
+    assert [c["id"] for c in authed_client.get("/api/categories").json()] == order
+
+
+def test_reorder_requires_all_categories(authed_client):
+    a = authed_client.post("/api/categories", json={"name": "A"}).json()["id"]
+    authed_client.post("/api/categories", json={"name": "B"})
+    assert authed_client.post("/api/categories/reorder", json={"ids": [a]}).status_code == 400
+    assert authed_client.post("/api/categories/reorder", json={"ids": [a, a]}).status_code == 400
 
 
 def test_update_nonexistent_category(authed_client):

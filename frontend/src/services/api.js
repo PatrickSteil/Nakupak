@@ -37,6 +37,7 @@ export const categories = {
   create: (data) => api.post('/api/categories', data),
   update: (id, data) => api.put(`/api/categories/${id}`, data),
   delete: (id) => api.delete(`/api/categories/${id}`),
+  reorder: (ids) => api.post('/api/categories/reorder', { ids }),
 }
 
 export const items = {

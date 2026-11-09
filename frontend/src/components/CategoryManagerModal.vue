@@ -3,7 +3,7 @@ import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useListStore } from '../stores/list'
 import { categories as categoriesApi } from '../services/api'
-import { Pencil, Trash2 } from 'lucide-vue-next'
+import { Pencil, Trash2, ChevronUp, ChevronDown } from 'lucide-vue-next'
 import BaseModal from './BaseModal.vue'
 import CategoryModal from './CategoryModal.vue'
 import ConfirmModal from './ConfirmModal.vue'
@@ -58,6 +58,14 @@ async function handleDeleteConfirm() {
   deleteTarget.value = null
 }
 
+async function move(index, delta) {
+  const ids = listStore.categories.map(c => c.id)
+  const target = index + delta
+  if (target < 0 || target >= ids.length) return
+  ;[ids[index], ids[target]] = [ids[target], ids[index]]
+  await listStore.reorderCategories(ids)
+}
+
 function close() {
   emit('close')
 }
@@ -65,9 +73,16 @@ function close() {
 
 <template>
   <BaseModal :show="show" :title="t('settings.categories')" @close="close">
-    <div v-for="category in listStore.categories" :key="category.id" class="flex items-center gap-3 px-4 py-3 bg-surface-secondary border border-border rounded-xl mb-3">
+    <p v-if="listStore.categories.length > 1" class="text-sm text-text-muted mb-3">{{ t('settings.categoryOrderHint') }}</p>
+    <div v-for="(category, index) in listStore.categories" :key="category.id" class="flex items-center gap-3 px-4 py-3 bg-surface-secondary border border-border rounded-xl mb-3">
       <div class="w-4 h-4 rounded-full" :style="{ background: category.color }"></div>
       <span class="flex-1 font-medium text-text">{{ category.name }}</span>
+      <IconButton small :title="t('settings.moveUp')" :disabled="index === 0" :class="{ 'opacity-30': index === 0 }" @click="move(index, -1)">
+        <ChevronUp class="w-4 h-4" />
+      </IconButton>
+      <IconButton small :title="t('settings.moveDown')" :disabled="index === listStore.categories.length - 1" :class="{ 'opacity-30': index === listStore.categories.length - 1 }" @click="move(index, 1)">
+        <ChevronDown class="w-4 h-4" />
+      </IconButton>
       <IconButton @click="startEdit(category)">
         <Pencil class="w-4 h-4" />
       </IconButton>

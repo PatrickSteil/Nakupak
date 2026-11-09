@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { shoppingList, items as itemsApi, categories as categoriesApi, recipes as recipesApi, pool as poolApi, sessions as sessionsApi } from '../services/api'
-import { nameCompare } from '../utils/sort'
+import { nameCompare, categoryCompare } from '../utils/sort'
 
 export const useListStore = defineStore('list', () => {
   const listItems = ref([])
@@ -33,7 +33,7 @@ export const useListStore = defineStore('list', () => {
     }
 
     const sorted = Object.values(grouped).sort((a, b) =>
-      nameCompare(a.category?.name || '', b.category?.name || '')
+      categoryCompare(a.category, b.category)
     )
 
     for (const group of sorted) {
@@ -78,7 +78,7 @@ export const useListStore = defineStore('list', () => {
     }
 
     const sorted = Object.values(grouped).sort((a, b) =>
-      nameCompare(a.category?.name || '', b.category?.name || '')
+      categoryCompare(a.category, b.category)
     )
 
     if (uncategorized.length > 0) {
@@ -101,6 +101,19 @@ export const useListStore = defineStore('list', () => {
   async function fetchCategories() {
     const response = await categoriesApi.list()
     categories.value = response.data
+  }
+
+  async function reorderCategories(ids) {
+    // Optimistic: apply the new order locally, then persist
+    const previous = categories.value
+    categories.value = ids
+      .map((id, i) => ({ ...previous.find(c => c.id === id), sort_order: i }))
+    try {
+      await categoriesApi.reorder(ids)
+    } catch (e) {
+      categories.value = previous
+      throw e
+    }
   }
 
   async function fetchRecipes() {
@@ -303,6 +316,7 @@ export const useListStore = defineStore('list', () => {
     fetchList,
     fetchItems,
     fetchCategories,
+    reorderCategories,
     fetchRecipes,
     fetchPool,
     fetchSessions,

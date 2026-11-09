@@ -103,6 +103,9 @@ export default {
     addedToList: "Added to list",
   },
   settings: {
+    moveUp: "Move up",
+    moveDown: "Move down",
+    categoryOrderHint: "Order categories like your route through the store — the shopping list follows this order.",
     title: "Settings",
     household: "Household",
     householdName: "Household name",

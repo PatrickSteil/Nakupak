@@ -3,7 +3,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useListStore } from '../stores/list'
 import { useToastStore } from '../stores/toast'
-import { nameCompare, normalizeForSearch } from '../utils/sort'
+import { nameCompare, categoryCompare, normalizeForSearch } from '../utils/sort'
 import { recipes as recipesApi } from '../services/api'
 import { Pencil, Trash2, Plus, ListPlus, Tag, Merge, CookingPot, X } from 'lucide-vue-next'
 import { Motion, AnimatePresence } from 'motion-v'
@@ -70,7 +70,7 @@ const allGroupedItems = computed(() => {
   }
 
   const sorted = Object.values(grouped).sort((a, b) =>
-    nameCompare(a.category?.name || '', b.category?.name || '')
+    categoryCompare(a.category, b.category)
   )
 
   for (const group of sorted) {
