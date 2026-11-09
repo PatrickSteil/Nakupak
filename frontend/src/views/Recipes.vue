@@ -4,7 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { useListStore } from '../stores/list'
 import { useToastStore } from '../stores/toast'
 import { recipes as recipesApi, items as itemsApi } from '../services/api'
-import { Pencil, Trash2, Plus, Download } from 'lucide-vue-next'
+import { Pencil, Trash2, Plus, Download, Upload, FileDown } from 'lucide-vue-next'
 import { marked } from 'marked'
 import PageLayout from '../components/PageLayout.vue'
 import AnimatedList from '../components/AnimatedList.vue'
@@ -32,6 +32,7 @@ const prefilledName = ref('')
 const prefilledDescription = ref('')
 const prefilledImageUrl = ref('')
 const expandedRecipes = ref(new Set())
+const jsonInput = ref(null)
 
 const showDeleteConfirm = ref(false)
 const deleteTarget = ref(null)
@@ -89,6 +90,49 @@ async function handleImported(data) {
   prefilledImageUrl.value = data.image_url || ''
   editingRecipe.value = null
   showModal.value = true
+}
+
+function downloadJson(doc, filename) {
+  const blob = new Blob([JSON.stringify(doc, null, 2)], { type: 'application/json' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
+async function exportRecipe(recipe) {
+  const { data } = await recipesApi.exportOne(recipe.id)
+  const slug = recipe.name.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '-').replace(/^-|-$/g, '') || 'recipe'
+  downloadJson(data, `${slug}.json`)
+}
+
+async function exportAllRecipes() {
+  const { data } = await recipesApi.exportAll()
+  downloadJson(data, 'nakupak-recipes.json')
+}
+
+async function handleJsonFile(event) {
+  const files = Array.from(event.target.files || [])
+  event.target.value = ''
+  if (!files.length) return
+  try {
+    // Merge all selected files into one document; each file may hold the full
+    // document, a list of recipes, or a single recipe
+    const recipes = []
+    for (const file of files) {
+      const doc = JSON.parse(await file.text())
+      if (Array.isArray(doc)) recipes.push(...doc)
+      else if (doc && Array.isArray(doc.recipes)) recipes.push(...doc.recipes)
+      else recipes.push(doc)
+    }
+    const { data } = await recipesApi.importJson({ recipes })
+    await Promise.all([listStore.fetchRecipes(), listStore.fetchItems()])
+    toastStore.show(t('recipes.importedJson', { count: data.length }))
+  } catch (e) {
+    toastStore.show(t('recipes.importJsonError'))
+  }
 }
 
 function startEdit(recipe) {
@@ -166,6 +210,9 @@ async function addRecipeToList(recipe) {
           <IconButton @click.stop="addRecipeToList(recipe)">
             <Plus class="w-5 h-5" />
           </IconButton>
+          <IconButton :title="t('recipes.exportJson')" @click.stop="exportRecipe(recipe)">
+            <FileDown class="w-5 h-5" />
+          </IconButton>
           <IconButton @click.stop="startEdit(recipe)">
             <Pencil class="w-5 h-5" />
           </IconButton>
@@ -226,6 +273,13 @@ async function addRecipeToList(recipe) {
 
     <template #fab>
       <div class="flex gap-2">
+        <input ref="jsonInput" type="file" multiple accept="application/json,.json" class="hidden" @change="handleJsonFile" />
+        <AppButton variant="outline" fab :title="t('recipes.exportAll')" @click="exportAllRecipes">
+          <FileDown class="w-4 h-4" />
+        </AppButton>
+        <AppButton variant="outline" fab :title="t('recipes.importJson')" @click="jsonInput.click()">
+          <Upload class="w-4 h-4" />
+        </AppButton>
         <AppButton variant="outline" fab @click="showImportModal = true">
           <Download class="w-4 h-4" />
           {{ t('recipes.importRecipe') }}

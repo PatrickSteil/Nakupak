@@ -2,12 +2,15 @@ import uuid
 from pathlib import Path
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile
 from sqlalchemy.orm import Session
 
 from ..database import get_db
-from ..models import Household, Recipe, RecipeItem
-from ..schemas import RecipeCreate, RecipeUpdate, RecipeResponse, RecipeItemBase
+from ..models import Category, Household, Item, Recipe, RecipeItem
+from ..schemas import (
+    RecipeCreate, RecipeUpdate, RecipeResponse, RecipeItemBase,
+    RecipeExportDocument, RecipeExportRecipe, RecipeExportIngredient,
+)
 from ..auth import get_current_household
 from ..utils import image_extension, sort_key
 
@@ -41,6 +44,120 @@ def list_recipes(
         db.query(Recipe).filter(Recipe.household_id == household.id).all(),
         key=lambda p: sort_key(p.name)
     )
+
+
+def _export_recipe(recipe: Recipe, request: Request) -> RecipeExportRecipe:
+    image_url = recipe.image_url
+    if image_url and image_url.startswith("/"):
+        # Make locally hosted images resolvable from another instance
+        image_url = str(request.base_url).rstrip("/") + image_url
+    return RecipeExportRecipe(
+        name=recipe.name,
+        description=recipe.description,
+        image_url=image_url,
+        ingredients=[
+            RecipeExportIngredient(
+                name=ri.item.name,
+                quantity=ri.quantity,
+                unit=ri.unit or "x",
+                category=ri.item.category.name if ri.item.category else None,
+            )
+            for ri in recipe.recipe_items
+        ],
+    )
+
+
+@router.get("/export", response_model=RecipeExportDocument)
+def export_recipes(
+    request: Request,
+    db: Session = Depends(get_db),
+    household: Household = Depends(get_current_household),
+):
+    recipes = sorted(
+        db.query(Recipe).filter(Recipe.household_id == household.id).all(),
+        key=lambda r: sort_key(r.name),
+    )
+    return RecipeExportDocument(recipes=[_export_recipe(r, request) for r in recipes])
+
+
+@router.get("/{recipe_id}/export", response_model=RecipeExportDocument)
+def export_recipe(
+    recipe_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    household: Household = Depends(get_current_household),
+):
+    recipe = db.query(Recipe).filter(
+        Recipe.id == recipe_id, Recipe.household_id == household.id
+    ).first()
+    if not recipe:
+        raise HTTPException(status_code=404, detail="Recipe not found")
+    return RecipeExportDocument(recipes=[_export_recipe(recipe, request)])
+
+
+@router.post("/import-json", response_model=list[RecipeResponse])
+def import_recipes_json(
+    doc: RecipeExportDocument,
+    db: Session = Depends(get_db),
+    household: Household = Depends(get_current_household),
+):
+    """Create recipes from the portable format, matching/creating items by name."""
+    if doc.format != "nakupak-recipes":
+        raise HTTPException(status_code=400, detail="Unsupported format")
+    if doc.version != 1:
+        raise HTTPException(status_code=400, detail="Unsupported version")
+
+    items = {
+        i.name.strip().lower(): i
+        for i in db.query(Item).filter(Item.household_id == household.id).all()
+    }
+    categories = {
+        c.name.strip().lower(): c
+        for c in db.query(Category).filter(Category.household_id == household.id).all()
+    }
+
+    def get_category(name: str | None) -> Category | None:
+        name = (name or "").strip()
+        if not name:
+            return None
+        key = name.lower()
+        if key not in categories:
+            cat = Category(name=name, household_id=household.id, sort_order=len(categories))
+            db.add(cat)
+            db.flush()
+            categories[key] = cat
+        return categories[key]
+
+    created = []
+    for r in doc.recipes:
+        db_recipe = Recipe(
+            name=r.name, description=r.description,
+            image_url=r.image_url or None, household_id=household.id,
+        )
+        db.add(db_recipe)
+        db.flush()
+        seen = set()
+        for ing in r.ingredients:
+            key = ing.name.strip().lower()
+            if not key or key in seen:
+                continue
+            seen.add(key)
+            item = items.get(key)
+            if item is None:
+                cat = get_category(ing.category)
+                item = Item(name=ing.name.strip(), household_id=household.id,
+                            category_id=cat.id if cat else None)
+                db.add(item)
+                db.flush()
+                items[key] = item
+            db.add(RecipeItem(recipe_id=db_recipe.id, item_id=item.id,
+                              quantity=ing.quantity, unit=ing.unit))
+        created.append(db_recipe)
+
+    db.commit()
+    for r in created:
+        db.refresh(r)
+    return created
 
 
 @router.post("", response_model=RecipeResponse)

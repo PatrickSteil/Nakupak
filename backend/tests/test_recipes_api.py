@@ -107,3 +107,64 @@ def test_upload_image_rejects_svg(authed_client, tmp_path, monkeypatch):
     )
     assert resp.status_code == 400
     assert list(tmp_path.iterdir()) == []
+
+
+def _make_recipe(c):
+    cat = c.post("/api/categories", json={"name": "Dairy"}).json()
+    milk = c.post("/api/items", json={"name": "Milk", "category_id": cat["id"]}).json()
+    flour = c.post("/api/items", json={"name": "Flour"}).json()
+    return c.post("/api/recipes", json={
+        "name": "Pancakes", "description": "Tasty",
+        "items": [
+            {"item_id": milk["id"], "quantity": 2, "unit": "l"},
+            {"item_id": flour["id"], "quantity": 300, "unit": "g"},
+        ],
+    }).json()
+
+
+def test_export_all_and_single(authed_client):
+    recipe = _make_recipe(authed_client)
+    doc = authed_client.get("/api/recipes/export").json()
+    assert doc["format"] == "nakupak-recipes" and doc["version"] == 1
+    assert len(doc["recipes"]) == 1
+    ings = {i["name"]: i for i in doc["recipes"][0]["ingredients"]}
+    assert ings["Milk"] == {"name": "Milk", "quantity": 2, "unit": "l", "category": "Dairy"}
+    assert ings["Flour"]["category"] is None
+    single = authed_client.get(f"/api/recipes/{recipe['id']}/export").json()
+    assert single["recipes"] == doc["recipes"]
+    assert authed_client.get("/api/recipes/9999/export").status_code == 404
+
+
+def test_import_json_roundtrip_creates_items_and_categories(authed_client):
+    _make_recipe(authed_client)
+    doc = authed_client.get("/api/recipes/export").json()
+    # simulate another database: import into fresh state by deleting everything
+    for r in authed_client.get("/api/recipes").json():
+        authed_client.delete(f"/api/recipes/{r['id']}")
+    for i in authed_client.get("/api/items").json():
+        authed_client.delete(f"/api/items/{i['id']}")
+    for c in authed_client.get("/api/categories").json():
+        authed_client.delete(f"/api/categories/{c['id']}")
+
+    resp = authed_client.post("/api/recipes/import-json", json=doc)
+    assert resp.status_code == 200
+    created = resp.json()
+    assert len(created) == 1 and created[0]["name"] == "Pancakes"
+    by_name = {ri["item"]["name"]: ri for ri in created[0]["recipe_items"]}
+    assert by_name["Milk"]["quantity"] == 2 and by_name["Milk"]["unit"] == "l"
+    assert by_name["Milk"]["item"]["category"]["name"] == "Dairy"
+    assert len(authed_client.get("/api/categories").json()) == 1
+
+
+def test_import_json_reuses_existing_items(authed_client):
+    _make_recipe(authed_client)
+    doc = authed_client.get("/api/recipes/export").json()
+    doc["recipes"][0]["ingredients"][0]["name"] = doc["recipes"][0]["ingredients"][0]["name"].upper()
+    authed_client.post("/api/recipes/import-json", json=doc)
+    assert len(authed_client.get("/api/items").json()) == 2
+    assert len(authed_client.get("/api/recipes").json()) == 2
+
+
+def test_import_json_rejects_wrong_format(authed_client):
+    resp = authed_client.post("/api/recipes/import-json", json={"format": "other", "recipes": []})
+    assert resp.status_code == 400

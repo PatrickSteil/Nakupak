@@ -124,6 +124,27 @@ class RecipeCreate(RecipeBase):
     items: list[RecipeItemBase] = []
 
 
+class RecipeExportIngredient(BaseModel):
+    name: str
+    quantity: float = 1
+    unit: str = "x"
+    category: str | None = None
+
+
+class RecipeExportRecipe(BaseModel):
+    name: str
+    description: str | None = None
+    image_url: str | None = None
+    ingredients: list[RecipeExportIngredient] = []
+
+
+class RecipeExportDocument(BaseModel):
+    """Portable, database-independent recipe format (ingredients by name)."""
+    format: str = "nakupak-recipes"
+    version: int = 1
+    recipes: list[RecipeExportRecipe]
+
+
 class RecipeUpdate(BaseModel):
     name: str | None = None
     description: str | None = None

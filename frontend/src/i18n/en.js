@@ -62,6 +62,11 @@ export default {
     otherItems: "Other items",
   },
   recipes: {
+    exportJson: "Export as JSON",
+    exportAll: "Export all recipes as JSON",
+    importJson: "Import from JSON file",
+    importedJson: "Imported {count} recipe(s)",
+    importJsonError: "Failed to import JSON file",
     title: "Recipes",
     newRecipe: "New Recipe",
     importRecipe: "Import",

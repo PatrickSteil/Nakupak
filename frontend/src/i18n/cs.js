@@ -60,6 +60,11 @@ export default {
     otherItems: 'Ostatní položky',
   },
   recipes: {
+    exportJson: "Exportovat jako JSON",
+    exportAll: "Exportovat všechny recepty jako JSON",
+    importJson: "Importovat ze souboru JSON",
+    importedJson: "Importováno receptů: {count}",
+    importJsonError: "Import souboru JSON se nezdařil",
     title: 'Recepty',
     newRecipe: 'Nový recept',
     importRecipe: 'Importovat',

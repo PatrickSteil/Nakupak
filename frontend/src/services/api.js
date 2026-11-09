@@ -71,6 +71,9 @@ export const recipes = {
   update: (id, data) => api.put(`/api/recipes/${id}`, data),
   delete: (id) => api.delete(`/api/recipes/${id}`),
   import: (data) => api.post('/api/recipes/import', data),
+  exportAll: () => api.get('/api/recipes/export'),
+  exportOne: (id) => api.get(`/api/recipes/${id}/export`),
+  importJson: (doc) => api.post('/api/recipes/import-json', doc),
   uploadImage: (file) => {
     const formData = new FormData()
     formData.append('file', file)

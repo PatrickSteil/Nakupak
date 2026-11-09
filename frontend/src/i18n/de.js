@@ -62,6 +62,11 @@ export default {
     otherItems: "Andere Artikel",
   },
   recipes: {
+    exportJson: "Als JSON exportieren",
+    exportAll: "Alle Rezepte als JSON exportieren",
+    importJson: "Aus JSON-Datei importieren",
+    importedJson: "{count} Rezept(e) importiert",
+    importJsonError: "JSON-Datei konnte nicht importiert werden",
     title: "Rezepte",
     newRecipe: "Neues Rezept",
     importRecipe: "Importieren",
