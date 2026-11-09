@@ -36,7 +36,7 @@ function getItemName(sessionItem) {
 
 function formatDate(dateString) {
   const date = new Date(dateString)
-  const loc = locale.value === 'cs' ? 'cs-CZ' : 'en-US'
+  const loc = { cs: 'cs-CZ', de: 'de-DE' }[locale.value] || 'en-US'
   return date.toLocaleDateString(loc, {
     weekday: 'short',
     month: 'short',

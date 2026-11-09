@@ -16,6 +16,8 @@ defineProps({
 });
 
 const { t, locale } = useI18n();
+const languages = ["en", "cs", "de"];
+const flags = { en: "🇬🇧", cs: "🇨🇿", de: "🇩🇪" };
 
 const isDark = ref(document.documentElement.classList.contains("dark"));
 
@@ -30,7 +32,7 @@ function toggleTheme() {
 }
 
 function toggleLanguage() {
-    locale.value = locale.value === "en" ? "cs" : "en";
+    locale.value = languages[(languages.indexOf(locale.value) + 1) % languages.length];
     localStorage.setItem("language", locale.value);
 }
 </script>
@@ -50,7 +52,7 @@ function toggleLanguage() {
                     class="p-2.5 text-text-muted hover:text-text-secondary text-lg w-8 text-center"
                     @click="toggleLanguage"
                 >
-                    {{ locale === "en" ? "🇬🇧" : "🇨🇿" }}
+                    {{ flags[locale] }}
                 </button>
                 <button
                     class="pl-3 pr-2 text-text-muted hover:text-text-secondary"
