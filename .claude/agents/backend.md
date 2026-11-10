@@ -1,6 +1,6 @@
 ---
 name: backend
-description: Backend development specialist for FastAPI, SQLAlchemy, Alembic migrations, WebSocket broadcasting, Anthropic LLM integration, and tests. Use for any backend work in the backend/ directory.
+description: Backend development specialist for FastAPI, SQLAlchemy, Alembic migrations, WebSocket broadcasting, and tests. Use for any backend work in the backend/ directory.
 model: inherit
 memory: project
 ---
@@ -15,7 +15,6 @@ You are a backend development specialist for Nákupák, a FastAPI shopping list 
 - **Pydantic v2** for request/response schemas
 - **SQLite** database (at `backend/data/nakupak.db`)
 - **WebSockets** for real-time household broadcasting
-- **Anthropic SDK** (Claude Haiku) for recipe extraction from URLs/text
 - **uv** as the package manager and task runner
 
 ## Project Structure (`backend/`)
@@ -26,14 +25,12 @@ You are a backend development specialist for Nákupák, a FastAPI shopping list 
 - `app/auth.py` — JWT creation/validation, `get_current_household` dependency, PBKDF2 password hashing (`hash_password` / `verify_password`)
 - `app/schemas.py` — Pydantic models for all request/response types
 - `app/websocket.py` — `ConnectionManager` class and `broadcast_update` helper
-- `app/llm.py` — Anthropic recipe extraction and postprocessing
 - `app/utils.py` — `strip_emoji`, `sort_key` helpers
 - `app/routers/auth.py` — `/api/auth/create` and `/api/auth/login` (household name + password; names match case-insensitively), `GET`/`PATCH /api/auth/me` (rename, change password)
 - `app/routers/items.py` — Item & category CRUD, bulk operations, merge
 - `app/routers/list.py` — Shopping list operations, pool (smart suggestions)
 - `app/routers/recipes.py` — Recipe CRUD, image upload
 - `app/routers/sessions.py` — Shopping session lifecycle
-- `app/routers/import_recipe.py` — Recipe import from URL/text via LLM
 - `alembic/` — Migration environment and version scripts
 - `tests/` — Pytest suite with fixtures in `conftest.py`
 

@@ -3,13 +3,12 @@ import { ref, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useListStore } from '../stores/list'
 import { useToastStore } from '../stores/toast'
-import { recipes as recipesApi, items as itemsApi } from '../services/api'
-import { Pencil, Trash2, Plus, Download, Upload, FileDown } from 'lucide-vue-next'
+import { recipes as recipesApi } from '../services/api'
+import { Pencil, Trash2, Plus, Upload, FileDown } from 'lucide-vue-next'
 import { marked } from 'marked'
 import PageLayout from '../components/PageLayout.vue'
 import AnimatedList from '../components/AnimatedList.vue'
 import RecipeModal from '../components/RecipeModal.vue'
-import ImportRecipeModal from '../components/ImportRecipeModal.vue'
 import ConfirmModal from '../components/ConfirmModal.vue'
 import EmptyState from '../components/EmptyState.vue'
 import ItemBadge from '../components/ItemBadge.vue'
@@ -25,12 +24,6 @@ const toastStore = useToastStore()
 
 const showModal = ref(false)
 const editingRecipe = ref(null)
-const showImportModal = ref(false)
-const preselectedItemIds = ref([])
-const pendingIngredients = ref([])
-const prefilledName = ref('')
-const prefilledDescription = ref('')
-const prefilledImageUrl = ref('')
 const expandedRecipes = ref(new Set())
 const jsonInput = ref(null)
 
@@ -46,11 +39,6 @@ onMounted(async () => {
 
 function startCreate() {
   editingRecipe.value = null
-  preselectedItemIds.value = []
-  pendingIngredients.value = []
-  prefilledName.value = ''
-  prefilledDescription.value = ''
-  prefilledImageUrl.value = ''
   showModal.value = true
 }
 
@@ -65,31 +53,6 @@ function toggleExpanded(recipeId) {
 function renderMarkdown(text) {
   if (!text) return ''
   return marked(text)
-}
-
-async function handleImported(data) {
-  showImportModal.value = false
-
-  // Match existing items by name, keep unmatched as pending (no item creation yet)
-  const matched = []
-  const pending = []
-
-  for (const ing of data.ingredients) {
-    const existing = listStore.items.find(i => i.name.toLowerCase() === ing.name.toLowerCase())
-    if (existing) {
-      matched.push({ item_id: existing.id, quantity: ing.quantity, unit: ing.unit })
-    } else {
-      pending.push({ name: ing.name, quantity: ing.quantity, unit: ing.unit })
-    }
-  }
-
-  preselectedItemIds.value = matched
-  pendingIngredients.value = pending
-  prefilledName.value = data.name || ''
-  prefilledDescription.value = data.description || ''
-  prefilledImageUrl.value = data.image_url || ''
-  editingRecipe.value = null
-  showModal.value = true
 }
 
 function downloadJson(doc, filename) {
@@ -141,21 +104,11 @@ function startEdit(recipe) {
 }
 
 async function handleSave(data) {
-  // Create items for any pending ingredients (from import)
-  const allItems = [...data.items]
-  if (data.pendingIngredients?.length) {
-    for (const ing of data.pendingIngredients) {
-      const { data: created } = await itemsApi.create({ name: ing.name })
-      allItems.push({ item_id: created.id, quantity: ing.quantity, unit: ing.unit })
-    }
-    await listStore.fetchItems()
-  }
-
   const payload = {
     name: data.name,
     description: data.description,
     image_url: data.image_url,
-    items: allItems,
+    items: data.items,
   }
 
   if (data.id) {
@@ -246,19 +199,8 @@ async function addRecipeToList(recipe) {
     <RecipeModal
       :show="showModal"
       :edit-recipe="editingRecipe"
-      :preselected-item-ids="preselectedItemIds"
-      :pending-ingredients="pendingIngredients"
-      :prefilled-name="prefilledName"
-      :prefilled-description="prefilledDescription"
-      :prefilled-image-url="prefilledImageUrl"
       @close="showModal = false"
       @save="handleSave"
-    />
-
-    <ImportRecipeModal
-      :show="showImportModal"
-      @close="showImportModal = false"
-      @imported="handleImported"
     />
 
     <ConfirmModal
@@ -279,10 +221,6 @@ async function addRecipeToList(recipe) {
         </AppButton>
         <AppButton variant="outline" fab :title="t('recipes.importJson')" @click="jsonInput.click()">
           <Upload class="w-4 h-4" />
-        </AppButton>
-        <AppButton variant="outline" fab @click="showImportModal = true">
-          <Download class="w-4 h-4" />
-          {{ t('recipes.importRecipe') }}
         </AppButton>
         <AppButton fab @click="startCreate">
           {{ t('recipes.newRecipe') }}

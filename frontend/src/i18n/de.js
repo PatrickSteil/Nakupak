@@ -69,7 +69,6 @@ export default {
     importJsonError: "JSON-Datei konnte nicht importiert werden",
     title: "Rezepte",
     newRecipe: "Neues Rezept",
-    importRecipe: "Importieren",
     description: "Beschreibung",
     emptyTitle: "Noch keine Rezepte",
     emptySubtitle: "Mit Rezepten kannst du schnell Artikelgruppen hinzufügen",
@@ -77,21 +76,6 @@ export default {
     deleteRecipeMessage: 'Rezept "{name}" löschen?',
     added: '"{name}" hinzugefügt',
     created: 'Rezept "{name}" erstellt',
-  },
-  import: {
-    title: "Rezept importieren",
-    fromUrl: "Von URL",
-    fromText: "Aus Text",
-    urlPlaceholder: "https://example.com/rezept...",
-    textPlaceholder: "Rezepttext hier einfügen...",
-    processing: "Rezept wird extrahiert...",
-    submit: "Importieren",
-    error: "Rezept konnte nicht importiert werden",
-    workerOffline:
-      "Der Rezeptimport-Dienst ist derzeit nicht verfügbar — der API-Schlüssel ist nicht konfiguriert. Bitte wende dich an den Administrator.",
-    workerTimeout:
-      "Der Rezeptimport dauert zu lange — die Anfrage ist abgelaufen. Bitte versuche es später erneut.",
-    noTranslation: "Keine Übersetzung",
   },
   history: {
     title: "Verlauf",

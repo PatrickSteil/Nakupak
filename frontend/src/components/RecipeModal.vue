@@ -15,11 +15,6 @@ const { t } = useI18n()
 const props = defineProps({
   show: Boolean,
   editRecipe: Object,
-  preselectedItemIds: Array,
-  pendingIngredients: Array,
-  prefilledName: String,
-  prefilledDescription: String,
-  prefilledImageUrl: String,
 })
 
 const emit = defineEmits(['close', 'save'])
@@ -30,7 +25,6 @@ const recipeName = ref('')
 const recipeDescription = ref('')
 const recipeImageUrl = ref('')
 const selectedItems = ref([])
-const pendingItems = ref([])
 const uploading = ref(false)
 const fileInput = ref(null)
 
@@ -48,25 +42,11 @@ watch(() => props.show, (newVal) => {
         quantity: pi.quantity,
         unit: pi.unit || 'x',
       }))
-    } else if (props.preselectedItemIds?.length || props.pendingIngredients?.length) {
-      recipeName.value = props.prefilledName || ''
-      recipeDescription.value = props.prefilledDescription || ''
-      recipeImageUrl.value = props.prefilledImageUrl || ''
-      selectedItems.value = (props.preselectedItemIds || []).map(entry =>
-        typeof entry === 'object' ? { item_id: entry.item_id, quantity: entry.quantity || 1, unit: entry.unit || 'x' }
-          : { item_id: entry, quantity: 1, unit: 'x' }
-      )
-      pendingItems.value = (props.pendingIngredients || []).map(ing => ({
-        name: ing.name,
-        quantity: ing.quantity || 1,
-        unit: ing.unit || 'x',
-      }))
     } else {
       recipeName.value = ''
       recipeDescription.value = ''
       recipeImageUrl.value = ''
       selectedItems.value = []
-      pendingItems.value = []
     }
   }
 })
@@ -109,14 +89,7 @@ function handleDecrement(si) {
   const u = getUnit(si.unit || 'x')
   const newQty = si.quantity - u.step
   if (newQty < u.step) {
-    // Try both lists (selected items and pending items)
-    let index = selectedItems.value.indexOf(si)
-    if (index >= 0) {
-      selectedItems.value.splice(index, 1)
-    } else {
-      index = pendingItems.value.indexOf(si)
-      if (index >= 0) pendingItems.value.splice(index, 1)
-    }
+    handleRemoveItem(si)
   } else {
     si.quantity = newQty
   }
@@ -124,13 +97,7 @@ function handleDecrement(si) {
 
 function handleUpdateQuantity(si, newQty) {
   if (newQty <= 0) {
-    let index = selectedItems.value.indexOf(si)
-    if (index >= 0) {
-      selectedItems.value.splice(index, 1)
-    } else {
-      index = pendingItems.value.indexOf(si)
-      if (index >= 0) pendingItems.value.splice(index, 1)
-    }
+    handleRemoveItem(si)
   } else {
     si.quantity = newQty
   }
@@ -139,11 +106,6 @@ function handleUpdateQuantity(si, newQty) {
 function handleRemoveItem(si) {
   const index = selectedItems.value.indexOf(si)
   if (index >= 0) selectedItems.value.splice(index, 1)
-}
-
-function handleRemovePending(pi) {
-  const index = pendingItems.value.indexOf(pi)
-  if (index >= 0) pendingItems.value.splice(index, 1)
 }
 
 function handleChangeUnit(si, newUnit) {
@@ -157,7 +119,6 @@ function save() {
     description: recipeDescription.value || null,
     image_url: recipeImageUrl.value || null,
     items: selectedItems.value,
-    pendingIngredients: pendingItems.value,
   })
 }
 
@@ -214,7 +175,7 @@ function close() {
 
     <div class="mb-4">
       <label class="block text-sm font-medium mb-2 text-text-secondary">{{ t('common.itemsLabel') }}</label>
-      <div v-if="selectedItems.length > 0 || pendingItems.length > 0" class="mb-3">
+      <div v-if="selectedItems.length > 0" class="mb-3">
         <ItemCardList
           :items="[
             ...selectedItems.map(si => ({
@@ -223,22 +184,13 @@ function close() {
               quantity: si.quantity,
               unit: si.unit || 'x',
               _raw: si,
-              _pending: false,
-            })),
-            ...pendingItems.map((pi, i) => ({
-              id: 'pending-' + i,
-              item: { name: pi.name },
-              quantity: pi.quantity,
-              unit: pi.unit || 'x',
-              _raw: pi,
-              _pending: true,
             })),
           ]"
           @increment="(entry) => handleIncrement(entry._raw)"
           @decrement="(entry) => handleDecrement(entry._raw)"
           @change-unit="(entry, unit) => handleChangeUnit(entry._raw, unit)"
           @update-quantity="(entry, qty) => handleUpdateQuantity(entry._raw, qty)"
-          @remove="(entry) => entry._pending ? handleRemovePending(entry._raw) : handleRemoveItem(entry._raw)"
+          @remove="(entry) => handleRemoveItem(entry._raw)"
         />
       </div>
       <ItemSearchPicker

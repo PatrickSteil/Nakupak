@@ -9,7 +9,7 @@ from contextlib import asynccontextmanager
 from .database import engine, SessionLocal
 from .websocket import manager
 from .auth import get_household_from_jwt
-from .routers import auth, items, list, recipes, sessions, import_recipe
+from .routers import auth, items, list, recipes, sessions
 
 
 def _run_alembic_migrations():
@@ -67,7 +67,6 @@ app.include_router(items.router)
 app.include_router(list.router)
 app.include_router(recipes.router)
 app.include_router(sessions.router)
-app.include_router(import_recipe.router)
 
 
 @app.websocket("/api/ws")

@@ -69,7 +69,6 @@ export default {
     importJsonError: "Failed to import JSON file",
     title: "Recipes",
     newRecipe: "New Recipe",
-    importRecipe: "Import",
     description: "Description",
     emptyTitle: "No recipes yet",
     emptySubtitle: "Recipes let you quickly add groups of items",
@@ -77,21 +76,6 @@ export default {
     deleteRecipeMessage: 'Delete recipe "{name}"?',
     added: 'Added "{name}"',
     created: 'Created recipe "{name}"',
-  },
-  import: {
-    title: "Import Recipe",
-    fromUrl: "From URL",
-    fromText: "From Text",
-    urlPlaceholder: "https://example.com/recipe...",
-    textPlaceholder: "Paste recipe text here...",
-    processing: "Extracting recipe...",
-    submit: "Import",
-    error: "Failed to import recipe",
-    workerOffline:
-      "The recipe import service is currently unavailable — the API key is not configured. Please contact the administrator.",
-    workerTimeout:
-      "The recipe import is taking too long — the request timed out. Please try again later.",
-    noTranslation: "No translation",
   },
   history: {
     title: "History",

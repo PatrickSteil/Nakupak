@@ -24,13 +24,3 @@ cd frontend
 npm install
 npm run dev
 ```
-
-### LLM Worker
-
-Recipe import uses an LLM (via Ollama) to extract structured data from recipe pages.
-The inference runs on a separate machine that connects to the server over WebSocket.
-
-```bash
-cd worker
-uv run llm_worker.py
-```
