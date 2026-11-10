@@ -25,19 +25,6 @@ def _token_for(household: Household) -> dict:
     return {"access_token": access_token, "token_type": "bearer"}
 
 
-@router.post("/create", response_model=Token)
-def create_household(data: HouseholdCredentials, db: Session = Depends(get_db)):
-    if not data.password:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Password must not be empty")
-    if _find_by_name(db, data.name):
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Household name already taken")
-    household = Household(name=data.name, password_hash=hash_password(data.password))
-    db.add(household)
-    db.commit()
-    db.refresh(household)
-    return _token_for(household)
-
-
 @router.post("/login", response_model=Token)
 def login(data: HouseholdCredentials, db: Session = Depends(get_db)):
     household = _find_by_name(db, data.name)

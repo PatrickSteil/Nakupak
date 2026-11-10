@@ -1,43 +1,49 @@
+import pytest
+
 from app.auth import hash_password
+from app.cli import create_household
 
 
 def _bearer(resp):
     return {"Authorization": f"Bearer {resp.json()['access_token']}"}
 
 
-def test_create_household(client):
+def test_public_create_endpoint_is_gone(client):
     resp = client.post("/api/auth/create", json={"name": "Home", "password": "secret"})
-    assert resp.status_code == 200
-    data = resp.json()
-    assert "access_token" in data
-    assert data["token_type"] == "bearer"
+    assert resp.status_code in (404, 405)
 
 
-def test_create_rejects_empty_password(client):
-    resp = client.post("/api/auth/create", json={"name": "Home", "password": ""})
-    assert resp.status_code == 400
+def test_create_household_cli_helper(db_session):
+    h = create_household(db_session, "  Home ", "secret")
+    assert h.name == "Home"
+    assert h.password_hash != "secret"
 
 
-def test_create_rejects_blank_name(client):
-    resp = client.post("/api/auth/create", json={"name": "   ", "password": "secret"})
-    assert resp.status_code == 422
+def test_create_rejects_empty_password(db_session):
+    with pytest.raises(ValueError):
+        create_household(db_session, "Home", "")
 
 
-def test_create_duplicate_name_case_insensitive(client):
-    client.post("/api/auth/create", json={"name": "Home", "password": "secret"})
-    resp = client.post("/api/auth/create", json={"name": "home", "password": "other"})
-    assert resp.status_code == 409
+def test_create_rejects_blank_name(db_session):
+    with pytest.raises(ValueError):
+        create_household(db_session, "   ", "secret")
 
 
-def test_login(client):
-    client.post("/api/auth/create", json={"name": "Home", "password": "secret"})
+def test_create_duplicate_name_case_insensitive(db_session):
+    create_household(db_session, "Home", "secret")
+    with pytest.raises(ValueError):
+        create_household(db_session, "home", "other")
+
+
+def test_login(client, db_session):
+    create_household(db_session, "Home", "secret")
     resp = client.post("/api/auth/login", json={"name": "  hOME ", "password": "secret"})
     assert resp.status_code == 200
     assert "access_token" in resp.json()
 
 
-def test_login_wrong_password(client):
-    client.post("/api/auth/create", json={"name": "Home", "password": "secret"})
+def test_login_wrong_password(client, db_session):
+    create_household(db_session, "Home", "secret")
     resp = client.post("/api/auth/login", json={"name": "Home", "password": "wrong"})
     assert resp.status_code == 401
 
@@ -113,9 +119,7 @@ def test_change_password_rejects_empty(client, auth_headers):
     assert resp.status_code == 400
 
 
-def test_create_login_me_roundtrip(client):
-    create_resp = client.post("/api/auth/create", json={"name": "Home", "password": "secret"})
-    me_resp = client.get("/api/auth/me", headers=_bearer(create_resp))
-    assert me_resp.json()["name"] == "Home"
+def test_login_me_roundtrip(client, db_session):
+    create_household(db_session, "Home", "secret")
     login_resp = client.post("/api/auth/login", json={"name": "Home", "password": "secret"})
     assert client.get("/api/auth/me", headers=_bearer(login_resp)).json()["name"] == "Home"

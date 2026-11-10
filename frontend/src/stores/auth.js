@@ -14,10 +14,6 @@ export const useAuthStore = defineStore('auth', () => {
     await fetchHousehold()
   }
 
-  async function createHousehold(name, password) {
-    await setSession(await auth.create(name, password))
-  }
-
   async function login(name, password) {
     await setSession(await auth.login(name, password))
   }
@@ -44,5 +40,5 @@ export const useAuthStore = defineStore('auth', () => {
     localStorage.removeItem('token')
   }
 
-  return { household, token, isLoggedIn, createHousehold, login, updateHousehold, fetchHousehold, logout }
+  return { household, token, isLoggedIn, login, updateHousehold, fetchHousehold, logout }
 })

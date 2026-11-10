@@ -34,18 +34,6 @@ describe('auth store', () => {
     expect(store.isLoggedIn).toBe(true)
   })
 
-  it('createHousehold sets token and fetches household', async () => {
-    authApi.create.mockResolvedValue({ data: { access_token: 'jwt-123' } })
-    authApi.me.mockResolvedValue({ data: { name: 'Home', created_at: '2024-01-01' } })
-
-    const store = useAuthStore()
-    await store.createHousehold('Home', 'secret')
-    expect(authApi.create).toHaveBeenCalledWith('Home', 'secret')
-    expect(store.token).toBe('jwt-123')
-    expect(localStorage.setItem).toHaveBeenCalledWith('token', 'jwt-123')
-    expect(store.household).toEqual({ name: 'Home', created_at: '2024-01-01' })
-  })
-
   it('login sets token and fetches household', async () => {
     authApi.login.mockResolvedValue({ data: { access_token: 'jwt-456' } })
     authApi.me.mockResolvedValue({ data: { name: 'Home', created_at: '2024-01-01' } })

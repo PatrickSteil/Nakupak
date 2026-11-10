@@ -21,25 +21,20 @@ const loading = ref(false)
 function errorMessage(e) {
   const status = e.response?.status
   if (status === 401) return t('login.invalidCredentials')
-  if (status === 409) return t('login.nameTaken')
   return e.response?.data?.detail || t('login.error')
 }
 
-async function submit(action) {
+async function submit() {
   if (loading.value) return
   error.value = ''
-  if (!name.value.trim() || (action === 'create' && !password.value)) {
+  if (!name.value.trim()) {
     error.value = t('login.fillBoth')
     return
   }
   loading.value = true
 
   try {
-    if (action === 'create') {
-      await authStore.createHousehold(name.value.trim(), password.value)
-    } else {
-      await authStore.login(name.value.trim(), password.value)
-    }
+    await authStore.login(name.value.trim(), password.value)
     syncStore.connect()
     router.push('/')
   } catch (e) {
@@ -56,7 +51,7 @@ async function submit(action) {
       <h1 class="text-3xl font-bold text-primary mb-1">{{ t('login.title') }}</h1>
       <p class="text-text-muted mb-8">{{ t('login.tagline') }}</p>
 
-      <form class="flex flex-col gap-4" @submit.prevent="submit('login')">
+      <form class="flex flex-col gap-4" @submit.prevent="submit">
         <input
           v-model="name"
           type="text"
@@ -88,16 +83,6 @@ async function submit(action) {
 
         <AppButton type="submit" variant="primary" block :disabled="loading">
           {{ loading ? t('login.loading') : t('login.login') }}
-        </AppButton>
-
-        <div class="flex items-center gap-3 text-text-muted text-sm">
-          <div class="flex-1 border-t border-border"></div>
-          <span>{{ t('login.or') }}</span>
-          <div class="flex-1 border-t border-border"></div>
-        </div>
-
-        <AppButton type="button" variant="outline" block :disabled="loading" @click="submit('create')">
-          {{ t('login.create') }}
         </AppButton>
 
         <p v-if="error" class="text-danger text-sm">{{ error }}</p>
