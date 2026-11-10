@@ -1,14 +1,17 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useListStore } from '../stores/list'
 import { useToastStore } from '../stores/toast'
 import { recipes as recipesApi } from '../services/api'
-import { Pencil, Trash2, Plus, Upload, FileDown } from 'lucide-vue-next'
+import { Pencil, Trash2, Plus, Upload, FileDown, Copy, Link } from 'lucide-vue-next'
 import { marked } from 'marked'
+import { normalizeForSearch } from '../utils/sort'
 import PageLayout from '../components/PageLayout.vue'
 import AnimatedList from '../components/AnimatedList.vue'
 import RecipeModal from '../components/RecipeModal.vue'
+import ImportUrlModal from '../components/ImportUrlModal.vue'
+import SearchBar from '../components/SearchBar.vue'
 import ConfirmModal from '../components/ConfirmModal.vue'
 import EmptyState from '../components/EmptyState.vue'
 import ItemBadge from '../components/ItemBadge.vue'
@@ -26,6 +29,19 @@ const showModal = ref(false)
 const editingRecipe = ref(null)
 const expandedRecipes = ref(new Set())
 const jsonInput = ref(null)
+const searchQuery = ref('')
+const prefill = ref(null)
+const showUrlModal = ref(false)
+
+// Match recipe name or any ingredient name
+const filteredRecipes = computed(() => {
+  const q = normalizeForSearch(searchQuery.value.trim())
+  if (!q) return listStore.recipes
+  return listStore.recipes.filter(r =>
+    normalizeForSearch(r.name).includes(q) ||
+    r.recipe_items?.some(pi => normalizeForSearch(pi.item?.name || '').includes(q))
+  )
+})
 
 const showDeleteConfirm = ref(false)
 const deleteTarget = ref(null)
@@ -39,6 +55,7 @@ onMounted(async () => {
 
 function startCreate() {
   editingRecipe.value = null
+  prefill.value = null
   showModal.value = true
 }
 
@@ -98,6 +115,30 @@ async function handleJsonFile(event) {
   }
 }
 
+function handleUrlImported(data) {
+  showUrlModal.value = false
+  editingRecipe.value = null
+  prefill.value = {
+    name: data.name,
+    description: data.description,
+    image_url: data.image_url,
+    ingredientsText: data.ingredients_text,
+  }
+  showModal.value = true
+}
+
+async function duplicateRecipe(recipe) {
+  const name = t('recipes.copyName', { name: recipe.name })
+  await recipesApi.create({
+    name,
+    description: recipe.description,
+    image_url: recipe.image_url,
+    items: recipe.recipe_items.map(pi => ({ item_id: pi.item_id, quantity: pi.quantity, unit: pi.unit })),
+  })
+  await listStore.fetchRecipes()
+  toastStore.show(t('recipes.created', { name }))
+}
+
 function startEdit(recipe) {
   editingRecipe.value = recipe
   showModal.value = true
@@ -150,8 +191,12 @@ async function addRecipeToList(recipe) {
 <template>
   <PageLayout :title="t('recipes.title')">
     <EmptyState v-if="listStore.recipes.length === 0" :title="t('recipes.emptyTitle')" :subtitle="t('recipes.emptySubtitle')" />
+    <template v-else>
+      <SearchBar v-model="searchQuery" :placeholder="t('recipes.searchPlaceholder')" />
+      <EmptyState v-if="filteredRecipes.length === 0" :title="t('recipes.noMatch', { query: searchQuery })" />
+    </template>
 
-    <AnimatedList :items="listStore.recipes" v-slot="{ item: recipe }">
+    <AnimatedList :items="filteredRecipes" v-slot="{ item: recipe }">
       <CollectionCard class="mb-4" :expanded="expandedRecipes.has(recipe.id)">
         <template #header>
           <div class="flex items-center gap-3 cursor-pointer" @click="toggleExpanded(recipe.id)">
@@ -162,6 +207,9 @@ async function addRecipeToList(recipe) {
         <template #actions>
           <IconButton @click.stop="addRecipeToList(recipe)">
             <Plus class="w-5 h-5" />
+          </IconButton>
+          <IconButton :title="t('recipes.duplicate')" @click.stop="duplicateRecipe(recipe)">
+            <Copy class="w-5 h-5" />
           </IconButton>
           <IconButton :title="t('recipes.exportJson')" @click.stop="exportRecipe(recipe)">
             <FileDown class="w-5 h-5" />
@@ -199,8 +247,15 @@ async function addRecipeToList(recipe) {
     <RecipeModal
       :show="showModal"
       :edit-recipe="editingRecipe"
+      :prefill="prefill"
       @close="showModal = false"
       @save="handleSave"
+    />
+
+    <ImportUrlModal
+      :show="showUrlModal"
+      @close="showUrlModal = false"
+      @imported="handleUrlImported"
     />
 
     <ConfirmModal
@@ -221,6 +276,9 @@ async function addRecipeToList(recipe) {
         </AppButton>
         <AppButton variant="outline" fab :title="t('recipes.importJson')" @click="jsonInput.click()">
           <Upload class="w-4 h-4" />
+        </AppButton>
+        <AppButton variant="outline" fab :title="t('importUrl.title')" @click="showUrlModal = true">
+          <Link class="w-4 h-4" />
         </AppButton>
         <AppButton fab @click="startCreate">
           {{ t('recipes.newRecipe') }}

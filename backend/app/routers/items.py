@@ -11,6 +11,7 @@ from ..schemas import (
     BulkIdsRequest, BulkSetCategoryRequest
 )
 from ..auth import get_current_household
+from ..ingredients import suggest_category_id
 from ..utils import sort_key
 from ..websocket import broadcast_update
 
@@ -133,7 +134,13 @@ def create_item(
     db: Session = Depends(get_db),
     household: Household = Depends(get_current_household)
 ):
-    db_item = Item(**item.model_dump(), household_id=household.id)
+    data = item.model_dump()
+    if data.get("category_id") is None:
+        # Suggest a category from similar existing items ("Vollmilch" -> same as "Milch")
+        data["category_id"] = suggest_category_id(
+            item.name, db.query(Item).filter(Item.household_id == household.id).all()
+        )
+    db_item = Item(**data, household_id=household.id)
     db.add(db_item)
     db.commit()
     db.refresh(db_item)

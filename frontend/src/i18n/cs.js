@@ -60,6 +60,10 @@ export default {
     otherItems: 'Ostatní položky',
   },
   recipes: {
+    searchPlaceholder: "Hledat recepty nebo ingredience...",
+    noMatch: 'Žádný recept neodpovídá „{query}“',
+    duplicate: "Duplikovat",
+    copyName: "{name} (kopie)",
     exportJson: "Exportovat jako JSON",
     exportAll: "Exportovat všechny recepty jako JSON",
     importJson: "Importovat ze souboru JSON",
@@ -74,6 +78,15 @@ export default {
     deleteRecipeMessage: 'Smazat recept „{name}"?',
     added: 'Přidáno „{name}"',
     created: 'Vytvořen recept „{name}"',
+  },
+  importUrl: {
+    title: "Importovat z webové stránky",
+    hint: "Vlož adresu stránky s receptem. Název, obrázek, ingredience a postup se vyplní a ty je zkontroluješ.",
+    placeholder: "https://example.com/recept...",
+    submit: "Importovat",
+    loading: "Čtu recept...",
+    notFound: "Na této stránce se recept nenašel. Zkus místo toho vložit ingredience.",
+    error: "Stránku se nepodařilo načíst.",
   },
   history: {
     title: 'Historie',
@@ -106,6 +119,10 @@ export default {
     deleteCategoryMessage: 'Smazat kategorii „{name}"?',
   },
   common: {
+    pasteIngredients: "Vložit ingredience",
+    pastePlaceholder: "Jedna na řádek, např.\n2 l mléka\n300 g mouky\n3 vejce",
+    addPasted: "Přidat ingredience",
+    pasteError: "Ingredience se nepodařilo přidat",
     cancel: 'Zrušit',
     save: 'Uložit',
     create: 'Vytvořit',

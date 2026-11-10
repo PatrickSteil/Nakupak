@@ -145,6 +145,28 @@ class RecipeExportDocument(BaseModel):
     recipes: list[RecipeExportRecipe]
 
 
+class ParseIngredientsRequest(BaseModel):
+    text: str
+
+
+class ParsedIngredient(BaseModel):
+    name: str
+    quantity: float = 1
+    unit: str = "x"
+    item_id: int | None = None  # existing item matched by name, if any
+
+
+class ImportUrlRequest(BaseModel):
+    url: str
+
+
+class ImportUrlResponse(BaseModel):
+    name: str
+    description: str
+    image_url: str | None = None
+    ingredients_text: str
+
+
 class RecipeUpdate(BaseModel):
     name: str | None = None
     description: str | None = None

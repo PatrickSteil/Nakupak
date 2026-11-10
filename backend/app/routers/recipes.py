@@ -10,8 +10,11 @@ from ..models import Category, Household, Item, Recipe, RecipeItem
 from ..schemas import (
     RecipeCreate, RecipeUpdate, RecipeResponse, RecipeItemBase,
     RecipeExportDocument, RecipeExportRecipe, RecipeExportIngredient,
+    ParseIngredientsRequest, ParsedIngredient, ImportUrlRequest, ImportUrlResponse,
 )
 from ..auth import get_current_household
+from .. import recipe_url
+from ..ingredients import parse_ingredients, suggest_category_id
 from ..utils import image_extension, sort_key
 
 router = APIRouter(prefix="/api/recipes", tags=["recipes"])
@@ -95,6 +98,42 @@ def export_recipe(
     return RecipeExportDocument(recipes=[_export_recipe(recipe, request)])
 
 
+@router.post("/parse-ingredients", response_model=list[ParsedIngredient])
+def parse_ingredient_text(
+    req: ParseIngredientsRequest,
+    db: Session = Depends(get_db),
+    household: Household = Depends(get_current_household),
+):
+    """Turn pasted text (one ingredient per line) into quantity/unit/name rows."""
+    existing = {
+        i.name.strip().lower(): i.id
+        for i in db.query(Item).filter(Item.household_id == household.id).all()
+    }
+    return [
+        ParsedIngredient(**p, item_id=existing.get(p["name"].lower()))
+        for p in parse_ingredients(req.text)
+    ]
+
+
+@router.post("/import-url", response_model=ImportUrlResponse)
+async def import_recipe_from_url(
+    req: ImportUrlRequest,
+    household: Household = Depends(get_current_household),
+):
+    """Read a recipe from a web page's structured data (schema.org JSON-LD)."""
+    url = req.url.strip()
+    try:
+        body, _ = await recipe_url.safe_get(url, recipe_url.MAX_PAGE_BYTES)
+    except recipe_url.FetchError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    recipe = recipe_url.extract_recipe(body.decode("utf-8", errors="replace"), url)
+    if recipe is None:
+        raise HTTPException(status_code=422, detail="No recipe found on this page")
+    if recipe["image_url"]:
+        recipe["image_url"] = await recipe_url.download_image(recipe["image_url"])
+    return recipe
+
+
 @router.post("/import-json", response_model=list[RecipeResponse])
 def import_recipes_json(
     doc: RecipeExportDocument,
@@ -145,8 +184,9 @@ def import_recipes_json(
             item = items.get(key)
             if item is None:
                 cat = get_category(ing.category)
+                suggested = None if cat else suggest_category_id(ing.name, items.values())
                 item = Item(name=ing.name.strip(), household_id=household.id,
-                            category_id=cat.id if cat else None)
+                            category_id=cat.id if cat else suggested)
                 db.add(item)
                 db.flush()
                 items[key] = item

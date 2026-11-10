@@ -4,7 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { useListStore } from '../stores/list'
 import { getUnit } from '../utils/units'
 import { recipes as recipesApi } from '../services/api'
-import { X } from 'lucide-vue-next'
+import { X, ListPlus } from 'lucide-vue-next'
 import BaseModal from './BaseModal.vue'
 import AppButton from './AppButton.vue'
 import ItemCardList from './ItemCardList.vue'
@@ -15,6 +15,8 @@ const { t } = useI18n()
 const props = defineProps({
   show: Boolean,
   editRecipe: Object,
+  // Optional starting values for a new recipe (e.g. from a URL import)
+  prefill: Object,
 })
 
 const emit = defineEmits(['close', 'save'])
@@ -25,6 +27,9 @@ const recipeName = ref('')
 const recipeDescription = ref('')
 const recipeImageUrl = ref('')
 const selectedItems = ref([])
+const pasteText = ref('')
+const pasting = ref(false)
+const pasteError = ref('')
 const uploading = ref(false)
 const fileInput = ref(null)
 
@@ -43,13 +48,45 @@ watch(() => props.show, (newVal) => {
         unit: pi.unit || 'x',
       }))
     } else {
-      recipeName.value = ''
-      recipeDescription.value = ''
-      recipeImageUrl.value = ''
+      recipeName.value = props.prefill?.name || ''
+      recipeDescription.value = props.prefill?.description || ''
+      recipeImageUrl.value = props.prefill?.image_url || ''
       selectedItems.value = []
     }
+    pasteText.value = props.editRecipe ? '' : (props.prefill?.ingredientsText || '')
+    pasteError.value = ''
   }
 })
+
+// Paste "2 l Milch\n300 g Mehl": the server parses it, existing items are matched
+// by name and missing ones are created (the server suggests a category for them).
+async function addPastedIngredients() {
+  if (!pasteText.value.trim()) return
+  pasting.value = true
+  pasteError.value = ''
+  try {
+    const { data: rows } = await recipesApi.parseIngredients(pasteText.value)
+    for (const row of rows) {
+      let itemId = row.item_id
+      if (!itemId) {
+        const created = await listStore.createItem(row.name, null)
+        itemId = created.id
+      }
+      const existing = selectedItems.value.find(i => i.item_id === itemId)
+      if (existing) {
+        existing.quantity = row.quantity
+        existing.unit = row.unit
+      } else {
+        selectedItems.value.push({ item_id: itemId, quantity: row.quantity, unit: row.unit })
+      }
+    }
+    pasteText.value = ''
+  } catch (e) {
+    pasteError.value = t('common.pasteError')
+  } finally {
+    pasting.value = false
+  }
+}
 
 async function handleFileSelect(event) {
   const file = event.target.files?.[0]
@@ -198,6 +235,21 @@ function close() {
         @select="addItem"
         @create="addItem"
       />
+    </div>
+
+    <div class="mb-4">
+      <label class="block text-sm font-medium mb-2 text-text-secondary">{{ t('common.pasteIngredients') }}</label>
+      <textarea
+        v-model="pasteText"
+        :placeholder="t('common.pastePlaceholder')"
+        rows="4"
+        class="w-full px-4 py-3 border border-border rounded-lg text-base bg-surface text-text focus:outline-none focus:border-primary resize-y text-sm"
+      />
+      <p v-if="pasteError" class="mt-2 text-sm text-red-600 dark:text-red-400">{{ pasteError }}</p>
+      <AppButton variant="secondary" class="mt-2" :disabled="pasting || !pasteText.trim()" @click="addPastedIngredients">
+        <ListPlus class="w-4 h-4" />
+        {{ t('common.addPasted') }}
+      </AppButton>
     </div>
 
     <template #footer>

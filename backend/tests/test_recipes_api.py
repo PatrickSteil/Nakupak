@@ -1,3 +1,5 @@
+import pytest
+
 def test_list_recipes_empty(authed_client):
     resp = authed_client.get("/api/recipes")
     assert resp.status_code == 200
@@ -167,4 +169,73 @@ def test_import_json_reuses_existing_items(authed_client):
 
 def test_import_json_rejects_wrong_format(authed_client):
     resp = authed_client.post("/api/recipes/import-json", json={"format": "other", "recipes": []})
+    assert resp.status_code == 400
+
+
+def test_parse_ingredients_matches_existing_items(authed_client):
+    milk = authed_client.post("/api/items", json={"name": "Milch"}).json()
+    resp = authed_client.post("/api/recipes/parse-ingredients", json={"text": "2 l milch\n300 g Mehl"})
+    assert resp.status_code == 200
+    rows = resp.json()
+    assert rows[0] == {"name": "Milch", "quantity": 2, "unit": "l", "item_id": milk["id"]}
+    assert rows[1]["name"] == "Mehl" and rows[1]["item_id"] is None
+
+
+def test_new_item_gets_suggested_category(authed_client):
+    cat = authed_client.post("/api/categories", json={"name": "Dairy"}).json()
+    authed_client.post("/api/items", json={"name": "Milch", "category_id": cat["id"]})
+    item = authed_client.post("/api/items", json={"name": "Vollmilch"}).json()
+    assert item["category_id"] == cat["id"]
+    other = authed_client.post("/api/items", json={"name": "Schraube"}).json()
+    assert other["category_id"] is None
+    explicit = authed_client.post("/api/items", json={"name": "Milchreis", "category_id": None}).json()
+    assert explicit["category_id"] == cat["id"]  # suggestion also applies when category is omitted/null
+
+
+_RECIPE_HTML = """<html><head><script type="application/ld+json">
+{"@context":"https://schema.org","@graph":[{"@type":"WebSite"},
+ {"@type":"Recipe","name":"Pfannkuchen &amp; Co","description":"Lecker",
+  "image":["/img/p.jpg"],
+  "recipeIngredient":["300 g Mehl","2 Eier"],
+  "recipeInstructions":[{"@type":"HowToStep","text":"Mischen"},{"@type":"HowToStep","text":"Braten"}]}]}
+</script></head></html>"""
+
+
+def test_import_url_reads_json_ld(authed_client, monkeypatch):
+    from app import recipe_url
+
+    async def fake_get(url, max_bytes):
+        if url.endswith(".jpg"):
+            return b"\x89PNG", "image/png"
+        return _RECIPE_HTML.encode(), "text/html"
+
+    monkeypatch.setattr(recipe_url, "safe_get", fake_get)
+    monkeypatch.setattr(recipe_url, "UPLOADS_DIR", __import__("pathlib").Path(__import__("tempfile").mkdtemp()))
+    resp = authed_client.post("/api/recipes/import-url", json={"url": "https://example.com/r"})
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["name"] == "Pfannkuchen & Co"
+    assert data["ingredients_text"] == "300 g Mehl\n2 Eier"
+    assert "1. Mischen\n2. Braten" in data["description"]
+    assert "https://example.com/r" in data["description"]
+    assert data["image_url"].startswith("/api/uploads/") and data["image_url"].endswith(".png")
+
+
+def test_import_url_without_recipe(authed_client, monkeypatch):
+    from app import recipe_url
+
+    async def fake_get(url, max_bytes):
+        return b"<html>nothing</html>", "text/html"
+
+    monkeypatch.setattr(recipe_url, "safe_get", fake_get)
+    resp = authed_client.post("/api/recipes/import-url", json={"url": "https://example.com/x"})
+    assert resp.status_code == 422
+
+
+@pytest.mark.parametrize("url", [
+    "http://localhost:8000/", "http://127.0.0.1/", "http://169.254.169.254/latest/",
+    "http://10.0.0.1/", "http://[::1]/", "file:///etc/passwd", "ftp://example.com/",
+])
+def test_import_url_blocks_internal_addresses(authed_client, url):
+    resp = authed_client.post("/api/recipes/import-url", json={"url": url})
     assert resp.status_code == 400
