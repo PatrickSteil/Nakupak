@@ -1,3 +1,5 @@
+import pytest
+
 def test_get_empty_list(authed_client):
     resp = authed_client.get("/api/list")
     assert resp.status_code == 200
@@ -143,3 +145,24 @@ def test_list_household_isolation(client, household, second_household, auth_head
     resp2 = client.get("/api/list", headers=second_auth_headers)
     assert len(resp1.json()) == 1
     assert len(resp2.json()) == 0
+
+
+def test_add_recipe_with_multiplier(authed_client):
+    item = authed_client.post("/api/items", json={"name": "Leek"}).json()
+    recipe = authed_client.post("/api/recipes", json={
+        "name": "Leek soup",
+        "items": [{"item_id": item["id"], "quantity": 2}]
+    }).json()
+    resp = authed_client.post(f"/api/list/add-recipe/{recipe['id']}?multiplier=3")
+    assert resp.status_code == 200
+    assert authed_client.get("/api/list").json()[0]["quantity"] == 6
+    # adding again aggregates onto the existing entry
+    authed_client.post(f"/api/list/add-recipe/{recipe['id']}?multiplier=2")
+    assert authed_client.get("/api/list").json()[0]["quantity"] == 10
+
+
+@pytest.mark.parametrize("bad", ["0", "-1", "101", "abc"])
+def test_add_recipe_rejects_bad_multiplier(authed_client, bad):
+    recipe = authed_client.post("/api/recipes", json={"name": "Soup"}).json()
+    resp = authed_client.post(f"/api/list/add-recipe/{recipe['id']}?multiplier={bad}")
+    assert resp.status_code == 422

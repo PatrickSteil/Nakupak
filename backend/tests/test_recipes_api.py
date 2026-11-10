@@ -239,3 +239,42 @@ def test_import_url_without_recipe(authed_client, monkeypatch):
 def test_import_url_blocks_internal_addresses(authed_client, url):
     resp = authed_client.post("/api/recipes/import-url", json={"url": url})
     assert resp.status_code == 400
+
+
+def test_recipe_categories_are_cleaned_and_persisted(authed_client):
+    resp = authed_client.post("/api/recipes", json={
+        "name": "Leek soup", "categories": ["  Soup ", "soup", "", "Vegetarian"],
+    })
+    assert resp.json()["categories"] == ["Soup", "Vegetarian"]
+    assert authed_client.get("/api/recipes").json()[0]["categories"] == ["Soup", "Vegetarian"]
+
+
+def test_recipe_without_categories_defaults_to_empty(authed_client):
+    assert authed_client.post("/api/recipes", json={"name": "X"}).json()["categories"] == []
+
+
+def test_update_recipe_categories(authed_client):
+    recipe = authed_client.post("/api/recipes", json={"name": "X", "categories": ["Soup"]}).json()
+    # omitted -> preserved
+    resp = authed_client.put(f"/api/recipes/{recipe['id']}", json={"name": "Y"})
+    assert resp.json()["categories"] == ["Soup"]
+    # [] -> cleared, list -> replaced
+    resp = authed_client.put(f"/api/recipes/{recipe['id']}", json={"categories": ["Dessert"]})
+    assert resp.json()["categories"] == ["Dessert"]
+    resp = authed_client.put(f"/api/recipes/{recipe['id']}", json={"categories": []})
+    assert resp.json()["categories"] == []
+
+
+def test_categories_roundtrip_through_export_import(authed_client):
+    authed_client.post("/api/recipes", json={"name": "Leek soup", "categories": ["Soup"]})
+    doc = authed_client.get("/api/recipes/export").json()
+    assert doc["recipes"][0]["categories"] == ["Soup"]
+    authed_client.post("/api/recipes/import-json", json=doc)
+    assert [r["categories"] for r in authed_client.get("/api/recipes").json()] == [["Soup"], ["Soup"]]
+
+
+def test_import_json_without_categories_field(authed_client):
+    doc = {"format": "nakupak-recipes", "version": 1, "recipes": [{"name": "Old export"}]}
+    resp = authed_client.post("/api/recipes/import-json", json=doc)
+    assert resp.status_code == 200
+    assert resp.json()[0]["categories"] == []

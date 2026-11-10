@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, Float, String, Text, DateTime, Boolean, ForeignKey
+from sqlalchemy import Column, Integer, Float, String, Text, DateTime, Boolean, ForeignKey, JSON
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from .database import Base
@@ -72,6 +72,7 @@ class Recipe(Base):
     name = Column(String, nullable=False)
     description = Column(Text, nullable=True)
     image_url = Column(String, nullable=True)
+    categories = Column(JSON, nullable=False, default=list, server_default="[]")
     household_id = Column(Integer, ForeignKey("households.id"), nullable=False)
     created_at = Column(DateTime, server_default=func.now())
 

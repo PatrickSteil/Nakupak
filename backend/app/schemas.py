@@ -1,6 +1,20 @@
-from pydantic import BaseModel, StringConstraints
+from pydantic import BaseModel, BeforeValidator, StringConstraints
 from datetime import datetime
 from typing import Annotated, Optional
+
+
+def _clean_categories(value):
+    """Trim, drop blanks and case-insensitive duplicates, keep the first spelling."""
+    seen, out = set(), []
+    for v in value or []:
+        name = " ".join(str(v).split())[:40]
+        if name and name.lower() not in seen:
+            seen.add(name.lower())
+            out.append(name)
+    return out
+
+
+RecipeCategories = Annotated[list[str], BeforeValidator(_clean_categories)]
 
 
 class Token(BaseModel):
@@ -118,6 +132,7 @@ class RecipeBase(BaseModel):
     name: str
     description: str | None = None
     image_url: str | None = None
+    categories: RecipeCategories = []
 
 
 class RecipeCreate(RecipeBase):
@@ -135,6 +150,7 @@ class RecipeExportRecipe(BaseModel):
     name: str
     description: str | None = None
     image_url: str | None = None
+    categories: RecipeCategories = []
     ingredients: list[RecipeExportIngredient] = []
 
 
@@ -171,6 +187,7 @@ class RecipeUpdate(BaseModel):
     name: str | None = None
     description: str | None = None
     image_url: str | None = None
+    categories: RecipeCategories | None = None
     items: list[RecipeItemBase] | None = None
 
 

@@ -26,7 +26,6 @@ api.interceptors.response.use(
 )
 
 export const auth = {
-  create: (name, password) => api.post('/api/auth/create', { name, password }),
   login: (name, password) => api.post('/api/auth/login', { name, password }),
   me: () => api.get('/api/auth/me'),
   update: (data) => api.patch('/api/auth/me', data),
@@ -55,7 +54,8 @@ export const shoppingList = {
   add: (items) => api.post('/api/list/add', { items }),
   update: (id, data) => api.put(`/api/list/${id}`, data),
   remove: (id) => api.delete(`/api/list/${id}`),
-  addRecipe: (recipeId) => api.post(`/api/list/add-recipe/${recipeId}`),
+  addRecipe: (recipeId, multiplier = 1) =>
+    api.post(`/api/list/add-recipe/${recipeId}`, null, { params: { multiplier } }),
   bulkRemove: (ids) => api.post('/api/list/remove', { ids }),
   clear: () => api.delete('/api/list'),
   toggleCheck: (id) => api.put(`/api/list/${id}/check`),

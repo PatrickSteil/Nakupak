@@ -58,6 +58,7 @@ def _export_recipe(recipe: Recipe, request: Request) -> RecipeExportRecipe:
         name=recipe.name,
         description=recipe.description,
         image_url=image_url,
+        categories=recipe.categories or [],
         ingredients=[
             RecipeExportIngredient(
                 name=ri.item.name,
@@ -171,7 +172,8 @@ def import_recipes_json(
     for r in doc.recipes:
         db_recipe = Recipe(
             name=r.name, description=r.description,
-            image_url=r.image_url or None, household_id=household.id,
+            image_url=r.image_url or None, categories=r.categories,
+            household_id=household.id,
         )
         db.add(db_recipe)
         db.flush()
@@ -206,7 +208,8 @@ def create_recipe(
     db: Session = Depends(get_db),
     household: Household = Depends(get_current_household)
 ):
-    db_recipe = Recipe(name=recipe.name, description=recipe.description, image_url=recipe.image_url, household_id=household.id)
+    db_recipe = Recipe(name=recipe.name, description=recipe.description, image_url=recipe.image_url,
+                       categories=recipe.categories, household_id=household.id)
     db.add(db_recipe)
     db.commit()
     db.refresh(db_recipe)
@@ -245,6 +248,8 @@ def update_recipe(
         db_recipe.description = recipe.description
     if recipe.image_url is not None:
         db_recipe.image_url = recipe.image_url or None
+    if recipe.categories is not None:
+        db_recipe.categories = recipe.categories
 
     if recipe.items is not None:
         db.query(RecipeItem).filter(RecipeItem.recipe_id == recipe_id).delete()

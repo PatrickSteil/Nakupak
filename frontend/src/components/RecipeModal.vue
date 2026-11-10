@@ -27,11 +27,36 @@ const recipeName = ref('')
 const recipeDescription = ref('')
 const recipeImageUrl = ref('')
 const selectedItems = ref([])
+const recipeCategories = ref([])
+const categoryInput = ref('')
 const pasteText = ref('')
 const pasting = ref(false)
 const pasteError = ref('')
 const uploading = ref(false)
 const fileInput = ref(null)
+
+// Existing categories offered as suggestions while typing
+const categorySuggestions = computed(() => {
+  const all = new Set()
+  for (const r of listStore.recipes) for (const c of r.categories || []) all.add(c)
+  return [...all].filter(c => !recipeCategories.value.some(x => x.toLowerCase() === c.toLowerCase()))
+    .sort((a, b) => a.localeCompare(b))
+})
+
+function addCategory() {
+  // Allow "Soup, Vegetarian" typed or pasted in one go
+  for (const part of categoryInput.value.split(',')) {
+    const name = part.trim().replace(/\s+/g, ' ')
+    if (name && !recipeCategories.value.some(c => c.toLowerCase() === name.toLowerCase())) {
+      recipeCategories.value.push(name)
+    }
+  }
+  categoryInput.value = ''
+}
+
+function removeCategory(name) {
+  recipeCategories.value = recipeCategories.value.filter(c => c !== name)
+}
 
 const title = computed(() => props.editRecipe ? t('common.editRecipe') : t('common.newRecipe'))
 const buttonText = computed(() => props.editRecipe ? t('common.save') : t('common.create'))
@@ -42,6 +67,7 @@ watch(() => props.show, (newVal) => {
       recipeName.value = props.editRecipe.name
       recipeDescription.value = props.editRecipe.description || ''
       recipeImageUrl.value = props.editRecipe.image_url || ''
+      recipeCategories.value = [...(props.editRecipe.categories || [])]
       selectedItems.value = props.editRecipe.recipe_items.map(pi => ({
         item_id: pi.item_id,
         quantity: pi.quantity,
@@ -51,10 +77,12 @@ watch(() => props.show, (newVal) => {
       recipeName.value = props.prefill?.name || ''
       recipeDescription.value = props.prefill?.description || ''
       recipeImageUrl.value = props.prefill?.image_url || ''
+      recipeCategories.value = [...(props.prefill?.categories || [])]
       selectedItems.value = []
     }
     pasteText.value = props.editRecipe ? '' : (props.prefill?.ingredientsText || '')
     pasteError.value = ''
+    categoryInput.value = ''
   }
 })
 
@@ -150,11 +178,13 @@ function handleChangeUnit(si, newUnit) {
 }
 
 function save() {
+  addCategory() // keep a category that was typed but not confirmed yet
   emit('save', {
     id: props.editRecipe?.id,
     name: recipeName.value,
     description: recipeDescription.value || null,
     image_url: recipeImageUrl.value || null,
+    categories: recipeCategories.value,
     items: selectedItems.value,
   })
 }
@@ -174,6 +204,35 @@ function close() {
         :placeholder="t('common.recipeNamePlaceholder')"
         class="w-full px-4 py-3 border border-border rounded-lg text-base bg-surface text-text focus:outline-none focus:border-primary"
       />
+    </div>
+
+    <div class="mb-4">
+      <label class="block text-sm font-medium mb-2 text-text-secondary">{{ t('recipes.categories') }}</label>
+      <div v-if="recipeCategories.length" class="flex flex-wrap gap-2 mb-2">
+        <span
+          v-for="c in recipeCategories"
+          :key="c"
+          class="inline-flex items-center gap-1 pl-3 pr-1.5 py-1 rounded-full text-sm bg-surface-tertiary text-text"
+        >
+          {{ c }}
+          <button type="button" class="p-0.5 text-text-muted hover:text-text" :aria-label="t('common.delete')" @click="removeCategory(c)">
+            <X class="w-3.5 h-3.5" />
+          </button>
+        </span>
+      </div>
+      <input
+        v-model="categoryInput"
+        type="text"
+        list="recipe-category-suggestions"
+        :placeholder="t('recipes.categoriesPlaceholder')"
+        class="w-full px-4 py-3 border border-border rounded-lg text-base bg-surface text-text focus:outline-none focus:border-primary"
+        @keydown.enter.prevent="addCategory"
+        @input="categoryInput.endsWith(',') && addCategory()"
+        @change="addCategory"
+      />
+      <datalist id="recipe-category-suggestions">
+        <option v-for="c in categorySuggestions" :key="c" :value="c" />
+      </datalist>
     </div>
 
     <div class="mb-4">

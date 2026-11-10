@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useListStore } from '../stores/list'
 import { useToastStore } from '../stores/toast'
@@ -10,6 +10,7 @@ import { normalizeForSearch } from '../utils/sort'
 import PageLayout from '../components/PageLayout.vue'
 import AnimatedList from '../components/AnimatedList.vue'
 import RecipeModal from '../components/RecipeModal.vue'
+import AddRecipeModal from '../components/AddRecipeModal.vue'
 import ImportUrlModal from '../components/ImportUrlModal.vue'
 import SearchBar from '../components/SearchBar.vue'
 import ConfirmModal from '../components/ConfirmModal.vue'
@@ -33,14 +34,34 @@ const searchQuery = ref('')
 const prefill = ref(null)
 const showUrlModal = ref(false)
 
-// Match recipe name or any ingredient name
+const activeCategory = ref(null)
+const addTarget = ref(null)
+
+const allCategories = computed(() => {
+  const names = new Set()
+  for (const r of listStore.recipes) for (const c of r.categories || []) names.add(c)
+  return [...names].sort((a, b) => a.localeCompare(b))
+})
+
+// A filter for a category that no recipe has anymore must not hide everything
+watch(allCategories, (names) => {
+  if (activeCategory.value && !names.includes(activeCategory.value)) activeCategory.value = null
+})
+
+function toggleCategory(name) {
+  activeCategory.value = activeCategory.value === name ? null : name
+}
+
+// Match recipe name, category or any ingredient name; the category chips narrow it down further
 const filteredRecipes = computed(() => {
   const q = normalizeForSearch(searchQuery.value.trim())
-  if (!q) return listStore.recipes
-  return listStore.recipes.filter(r =>
-    normalizeForSearch(r.name).includes(q) ||
-    r.recipe_items?.some(pi => normalizeForSearch(pi.item?.name || '').includes(q))
-  )
+  return listStore.recipes.filter(r => {
+    if (activeCategory.value && !(r.categories || []).includes(activeCategory.value)) return false
+    if (!q) return true
+    return normalizeForSearch(r.name).includes(q) ||
+      (r.categories || []).some(c => normalizeForSearch(c).includes(q)) ||
+      r.recipe_items?.some(pi => normalizeForSearch(pi.item?.name || '').includes(q))
+  })
 })
 
 const showDeleteConfirm = ref(false)
@@ -133,6 +154,7 @@ async function duplicateRecipe(recipe) {
     name,
     description: recipe.description,
     image_url: recipe.image_url,
+    categories: recipe.categories,
     items: recipe.recipe_items.map(pi => ({ item_id: pi.item_id, quantity: pi.quantity, unit: pi.unit })),
   })
   await listStore.fetchRecipes()
@@ -149,6 +171,7 @@ async function handleSave(data) {
     name: data.name,
     description: data.description,
     image_url: data.image_url,
+    categories: data.categories,
     items: data.items,
   }
 
@@ -178,13 +201,20 @@ async function addIngredientToList(pi) {
   toastStore.show(t('items.addedToList'), { items: [{ name: pi.item?.name, quantity: pi.quantity }] })
 }
 
-async function addRecipeToList(recipe) {
-  await listStore.addRecipe(recipe.id)
+async function addRecipeToList(recipe, count) {
+  await listStore.addRecipe(recipe.id, count)
   const items = recipe.recipe_items?.map(pi => ({
     name: pi.item?.name,
-    quantity: pi.quantity,
+    quantity: Math.round(pi.quantity * count * 1e4) / 1e4,
   })) || []
-  toastStore.show(t('recipes.added', { name: recipe.name }), { items })
+  const name = count > 1 ? `${count}× ${recipe.name}` : recipe.name
+  toastStore.show(t('recipes.added', { name }), { items })
+}
+
+async function confirmAddRecipe(count) {
+  const recipe = addTarget.value
+  addTarget.value = null
+  if (recipe) await addRecipeToList(recipe, count)
 }
 </script>
 
@@ -193,6 +223,16 @@ async function addRecipeToList(recipe) {
     <EmptyState v-if="listStore.recipes.length === 0" :title="t('recipes.emptyTitle')" :subtitle="t('recipes.emptySubtitle')" />
     <template v-else>
       <SearchBar v-model="searchQuery" :placeholder="t('recipes.searchPlaceholder')" />
+      <div v-if="allCategories.length" class="flex flex-wrap gap-2 mb-4">
+        <ItemBadge
+          v-for="c in allCategories"
+          :key="c"
+          :name="c"
+          clickable
+          :selected="activeCategory === c"
+          @click="toggleCategory(c)"
+        />
+      </div>
       <EmptyState v-if="filteredRecipes.length === 0" :title="t('recipes.noMatch', { query: searchQuery })" />
     </template>
 
@@ -201,11 +241,16 @@ async function addRecipeToList(recipe) {
         <template #header>
           <div class="flex items-center gap-3 cursor-pointer" @click="toggleExpanded(recipe.id)">
             <img v-if="recipe.image_url" :src="recipe.image_url" class="w-10 h-10 rounded-full object-cover flex-shrink-0" />
-            <h3 class="flex-1 text-base font-medium text-text truncate">{{ recipe.name }}</h3>
+            <div class="flex-1 min-w-0">
+              <h3 class="text-base font-medium text-text truncate">{{ recipe.name }}</h3>
+              <p v-if="recipe.categories?.length" class="text-xs text-text-muted truncate">
+                {{ recipe.categories.join(' · ') }}
+              </p>
+            </div>
           </div>
         </template>
         <template #actions>
-          <IconButton @click.stop="addRecipeToList(recipe)">
+          <IconButton :title="t('recipes.addToListTitle')" @click.stop="addTarget = recipe">
             <Plus class="w-5 h-5" />
           </IconButton>
           <IconButton :title="t('recipes.duplicate')" @click.stop="duplicateRecipe(recipe)">
@@ -250,6 +295,13 @@ async function addRecipeToList(recipe) {
       :prefill="prefill"
       @close="showModal = false"
       @save="handleSave"
+    />
+
+    <AddRecipeModal
+      :show="!!addTarget"
+      :recipe="addTarget"
+      @close="addTarget = null"
+      @confirm="confirmAddRecipe"
     />
 
     <ImportUrlModal

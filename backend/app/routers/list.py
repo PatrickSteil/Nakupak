@@ -1,5 +1,5 @@
 from typing import Annotated
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from datetime import datetime, timedelta
@@ -152,6 +152,7 @@ def clear_list(
 def add_recipe_to_list(
     recipe_id: int,
     background_tasks: BackgroundTasks,
+    multiplier: float = Query(1, gt=0, le=100),
     db: Session = Depends(get_db),
     household: Household = Depends(get_current_household)
 ):
@@ -172,7 +173,7 @@ def add_recipe_to_list(
         ).first()
 
         if existing:
-            existing.quantity += recipe_item.quantity
+            existing.quantity += round(recipe_item.quantity * multiplier, 4)
             existing.unit = recipe_item.unit
             existing.from_recipe_id = recipe_id
             db.commit()
@@ -181,7 +182,7 @@ def add_recipe_to_list(
         else:
             new_item = ShoppingListItem(
                 item_id=recipe_item.item_id,
-                quantity=recipe_item.quantity,
+                quantity=round(recipe_item.quantity * multiplier, 4),
                 unit=recipe_item.unit,
                 household_id=household.id,
                 from_recipe_id=recipe_id

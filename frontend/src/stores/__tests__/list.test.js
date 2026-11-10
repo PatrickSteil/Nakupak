@@ -129,4 +129,16 @@ describe('list store', () => {
       await promise
     })
   })
+
+  describe('addRecipe', () => {
+    it('passes the multiplier to the API and defaults to 1', async () => {
+      shoppingList.addRecipe.mockResolvedValue({ data: [] })
+      shoppingList.get.mockResolvedValue({ data: [] })
+      const store = useListStore()
+      await store.addRecipe(7, 3)
+      expect(shoppingList.addRecipe).toHaveBeenLastCalledWith(7, 3)
+      await store.addRecipe(7)
+      expect(shoppingList.addRecipe).toHaveBeenLastCalledWith(7, 1)
+    })
+  })
 })

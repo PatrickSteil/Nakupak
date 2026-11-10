@@ -215,8 +215,8 @@ export const useListStore = defineStore('list', () => {
     await shoppingList.remove(listItemId)
   }
 
-  async function addRecipe(recipeId) {
-    await shoppingList.addRecipe(recipeId)
+  async function addRecipe(recipeId, multiplier = 1) {
+    await shoppingList.addRecipe(recipeId, multiplier)
     await fetchList()
   }
 
