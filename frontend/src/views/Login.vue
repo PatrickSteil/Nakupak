@@ -21,6 +21,10 @@ const loading = ref(false)
 function errorMessage(e) {
   const status = e.response?.status
   if (status === 401) return t('login.invalidCredentials')
+  if (status === 429) {
+    const minutes = Math.max(1, Math.ceil(Number(e.response?.headers?.['retry-after']) / 60) || 1)
+    return t('login.tooManyAttempts', { minutes })
+  }
   return e.response?.data?.detail || t('login.error')
 }
 

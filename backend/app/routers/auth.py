@@ -1,9 +1,10 @@
 from typing import Annotated
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from ..database import get_db
+from ..ratelimit import login_by_ip, login_by_name
 from ..models import Household
 from ..schemas import HouseholdCredentials, HouseholdResponse, HouseholdUpdate, Token
 from ..auth import (
@@ -26,13 +27,28 @@ def _token_for(household: Household) -> dict:
 
 
 @router.post("/login", response_model=Token)
-def login(data: HouseholdCredentials, db: Session = Depends(get_db)):
+def login(data: HouseholdCredentials, request: Request, db: Session = Depends(get_db)):
+    # Behind Caddy uvicorn restores the real client IP from X-Forwarded-For
+    ip = request.client.host if request.client else "unknown"
+    name_key = f"{ip}|{data.name.lower()}"
+
+    wait = max(login_by_ip.retry_after(ip), login_by_name.retry_after(name_key))
+    if wait:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Too many failed attempts. Try again later.",
+            headers={"Retry-After": str(wait)},
+        )
+
     household = _find_by_name(db, data.name)
     if not household or not verify_password(data.password, household.password_hash):
+        login_by_ip.record_failure(ip)
+        login_by_name.record_failure(name_key)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid name or password"
         )
+    login_by_name.reset(name_key)
     return _token_for(household)
 
 

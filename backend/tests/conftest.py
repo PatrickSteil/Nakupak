@@ -7,6 +7,7 @@ from fastapi.testclient import TestClient
 from app.database import Base, get_db
 from app.main import app
 from app.models import Household
+from app.ratelimit import login_by_ip, login_by_name
 from app.auth import create_access_token, get_current_household
 
 # In-memory SQLite with StaticPool so all connections share the same database
@@ -24,6 +25,13 @@ def _set_sqlite_pragma(dbapi_conn, connection_record):
     cursor.close()
 
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+
+@pytest.fixture(autouse=True)
+def reset_login_limits():
+    login_by_ip.clear()
+    login_by_name.clear()
+    yield
 
 
 @pytest.fixture(autouse=True)

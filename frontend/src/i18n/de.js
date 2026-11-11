@@ -17,6 +17,7 @@ export default {
     loading: "Bitte warten...",
     fillBoth: "Haushaltsname und Passwort eingeben",
     invalidCredentials: "Ungültiger Name oder ungültiges Passwort",
+    tooManyAttempts: "Zu viele Fehlversuche. Versuche es in {minutes} Min. erneut.",
     error: "Ein Fehler ist aufgetreten",
   },
   mainList: {

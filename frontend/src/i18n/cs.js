@@ -17,6 +17,7 @@ export default {
     loading: 'Prosím čekejte...',
     fillBoth: 'Zadejte název domácnosti a heslo',
     invalidCredentials: 'Neplatný název nebo heslo',
+    tooManyAttempts: 'Příliš mnoho neúspěšných pokusů. Zkuste to znovu za {minutes} min.',
     error: 'Došlo k chybě',
   },
   mainList: {

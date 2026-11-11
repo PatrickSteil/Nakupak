@@ -17,6 +17,7 @@ export default {
     loading: "Please wait...",
     fillBoth: "Enter a household name and password",
     invalidCredentials: "Invalid name or password",
+    tooManyAttempts: "Too many failed attempts. Try again in {minutes} min.",
     error: "An error occurred",
   },
   mainList: {
