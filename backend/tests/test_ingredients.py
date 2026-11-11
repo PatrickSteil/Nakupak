@@ -27,6 +27,13 @@ from app.ingredients import parse_ingredient_line, parse_ingredients
     ("milch", ("Milch", 1, "x")),
     ("2 Lauch", ("Lauch", 2, "x")),  # 'l' is not the unit in 'Lauch'
     ("3 Gurken", ("Gurken", 3, "x")),  # 'g' is not the unit in 'Gurken'
+    ("2 EL Olivenöl", ("Olivenöl", 2, "el")),
+    ("1 TL Salz", ("Salz", 1, "tl")),
+    ("1,5 EL. Zitronensaft", ("Zitronensaft", 1.5, "el")),
+    ("½ TL Pfeffer, gemahlen", ("Pfeffer", 0.5, "tl")),
+    ("2 Esslöffel Öl", ("Öl", 2, "el")),
+    ("1 tsp Zimt", ("Zimt", 1, "tl")),
+    ("2 Eier", ("Eier", 2, "x")),  # 'el' prefix inside a word is not a unit
 ])
 def test_parse_line(line, expected):
     p = parse_ingredient_line(line)

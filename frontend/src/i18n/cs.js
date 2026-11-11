@@ -158,6 +158,8 @@ export default {
     kg: 'kg',
     ml: 'ml',
     l: 'l',
+    el: 'PL',
+    tl: 'ČL',
   },
   toast: {
     deleted: 'Smazáno „{name}"',

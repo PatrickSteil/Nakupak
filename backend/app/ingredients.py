@@ -23,6 +23,8 @@ _UNITS = {
     "l": ("l", 1), "liter": ("l", 1), "litre": ("l", 1),
     "x": ("x", 1), "stk": ("x", 1), "stück": ("x", 1), "stueck": ("x", 1),
     "pcs": ("x", 1), "pc": ("x", 1),
+    "el": ("el", 1), "esslöffel": ("el", 1), "essloeffel": ("el", 1), "tbsp": ("el", 1),
+    "tl": ("tl", 1), "teelöffel": ("tl", 1), "teeloeffel": ("tl", 1), "tsp": ("tl", 1),
 }
 _UNIT_RE = re.compile(
     r"^\s*(?P<u>" + "|".join(sorted(map(re.escape, _UNITS), key=len, reverse=True)) + r")\.?(?=\s|$)",

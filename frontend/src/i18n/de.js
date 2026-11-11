@@ -161,6 +161,8 @@ export default {
     kg: "kg",
     ml: "ml",
     l: "l",
+    el: "EL",
+    tl: "TL",
   },
   toast: {
     deleted: '"{name}" gelöscht',

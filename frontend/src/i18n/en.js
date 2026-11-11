@@ -160,6 +160,8 @@ export default {
     kg: "kg",
     ml: "ml",
     l: "l",
+    el: "tbsp",
+    tl: "tsp",
   },
   toast: {
     deleted: 'Deleted "{name}"',

@@ -89,7 +89,7 @@ watch(() => props.show, (newVal) => {
 // Paste "2 l Milch\n300 g Mehl": the server parses it, existing items are matched
 // by name and missing ones are created (the server suggests a category for them).
 async function addPastedIngredients() {
-  if (!pasteText.value.trim()) return
+  if (!pasteText.value.trim()) return true
   pasting.value = true
   pasteError.value = ''
   try {
@@ -109,8 +109,10 @@ async function addPastedIngredients() {
       }
     }
     pasteText.value = ''
+    return true
   } catch (e) {
     pasteError.value = t('common.pasteError')
+    return false
   } finally {
     pasting.value = false
   }
@@ -177,8 +179,11 @@ function handleChangeUnit(si, newUnit) {
   si.unit = newUnit
 }
 
-function save() {
+async function save() {
+  if (pasting.value) return
   addCategory() // keep a category that was typed but not confirmed yet
+  // Ingredients still sitting in the paste box (e.g. after a URL import) would be lost otherwise
+  if (!(await addPastedIngredients())) return
   emit('save', {
     id: props.editRecipe?.id,
     name: recipeName.value,
